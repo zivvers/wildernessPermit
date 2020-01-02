@@ -1,0 +1,7 @@
+/db/*
+/legacy/*
+*.class
+*.DS_Store
+*.jar
+/dir/target/*
+*classes*
