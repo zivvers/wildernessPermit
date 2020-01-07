@@ -11,28 +11,34 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TimeoutException;
 
 import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.Augmenter
 
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks._ //need for scala break statement
 
 import java.net.URL;
+import java.io.File;
+import org.apache.commons.io.FileUtils
 
 class BandCampCrawler(url : String)  {
 
-   val remoteURL : URL = new URL( "http://remote-webdriver:4444/wd/hub");
+   private val remoteURL : URL = new URL( "http://remote-webdriver:4444/wd/hub");
    // val bandName = 
-   var driver : RemoteWebDriver = new RemoteWebDriver( remoteURL , DesiredCapabilities.firefox() );
+   private var driver : RemoteWebDriver = new RemoteWebDriver( remoteURL , DesiredCapabilities.firefox() );
 
    println("IN AUX CONSTRUCTOR")
    driver.get(url);
    println("connection made...")
 
-   val waitForLoad = new WebDriverWait(driver, 12);
+   private val waitForLoad = new WebDriverWait(driver, 20, 250);
 
    waitForLoad.until(
-      ExpectedConditions.elementToBeClickable( By.className("playbutton") )
+      ExpectedConditions.elementToBeClickable( By.className("playbutton") ) // should be on all bandcamp pages
    )
 
    println("page loaded...")
@@ -58,27 +64,65 @@ class BandCampCrawler(url : String)  {
 
 
    // this is a method to expand the buyers list of an album (by clicking "more...")
+   // precondition(s): driver MUST be on loaded band page
+   // postcondition(s): driver has all buyers loaded, or at least all that can be loaded :( 
    def expandBuyers() 
    {
 
     var numBuyers : Int = driver.findElements(By.cssSelector("a.fan.pic")).asScala.toList.size
 
-    driver.findElement(By.cssSelector("a.more-thumbs")).click()
-
-    //driver.findElement(By.cssSelector("a.more-thumbs"))
-
     breakable {
-      while( true )
+
+      while( driver.findElements(By.cssSelector("a.more-thumbs")).asScala.toList.size > 0 )
       {
-        if ( driver.findElements(By.cssSelector("a.fan.pic")).asScala.toList.size > numBuyers )
+        println( s"number of buyers: ${ driver.findElements( By.cssSelector("a.fan.pic") ).asScala.toList.size }" );
+
+        var elem : WebElement = driver.findElement(By.cssSelector("a.more-thumbs"))
+        //var js: JavascriptExecutor = webDriver.asInstanceOf[JavascriptExecutor]
+        driver.asInstanceOf[JavascriptExecutor].executeScript("arguments[0].scrollIntoView(true);", elem);
+
+        //driver.findElement(By.cssSelector("a.more-thumbs"))
+        val augmentedDriver = new Augmenter().augment(driver);
+        val filed: File = driver.getScreenshotAs(OutputType.FILE);
+        println("taking screenshot")
+        FileUtils.copyFile(filed, new File("/usr/src/app/MongoScala/screenshots/bandcamp_2.jpg"))
+
+        try {
+
+          waitForLoad.until(
+            ExpectedConditions.visibilityOfElementLocated( By.cssSelector("a.more-thumbs") ) // should be on all bandcamp pages
+          )
+        }
+        catch
         {
 
-          println( s"number of buyers: ${ driver.findElements( By.cssSelector("a.fan.pic") ).asScala.toList.size }" );
-          break;
-        
-        }
 
+          case x: TimeoutException => 
+          {
+            println("Timeout Exception");
+            break;
+          }
+
+        }
+        // need to add ExpectedConditions.visibilityOfElementLocated !
+        
+        elem.click();
+        /*
+        breakable {
+          while( true )
+          {
+            if ( driver.findElements(By.cssSelector("a.fan.pic")).asScala.toList.size > numBuyers )
+            {
+
+              println( s"number of buyers: ${ driver.findElements( By.cssSelector("a.fan.pic") ).asScala.toList.size }" );
+              break;
+            
+            }
+
+          }
+        } */
       }
+
     }
 
 
@@ -94,6 +138,42 @@ class BandCampCrawler(url : String)  {
 
    }
 
+   /* method to get the user URLs from a band's album page
+      precondition(s): the band's album page has all buyers expanded ( see expandBuyers )
+      postcondition(s): returns List of Strings containing buyer URLs
+   */
+   def getBuyerURLs() : List[String] =
+   {
+
+      val buyerURLs : List[String] = driver.findElements(By.cssSelector("a.fan.pic")).asScala.toList.map( x => x.getAttribute("href") )
+
+      buyerURLs
+
+   }
+
+
+   def getAlbumDeets() : Map[String,String] = 
+   //def getAlbumDeets()
+   {
+
+    val albumTitle : String = driver.findElement(By.cssSelector("#name-section .trackTitle")).getAttribute("innerText").trim()
+    val artist : String = driver.findElement(By.cssSelector("#name-section a")).getAttribute("innerText").trim()
+    val location : String = driver.findElement(By.cssSelector("#band-name-location .location")).getAttribute("innerText").trim()
+
+
+    //println(s" number of album title sections: ${albumTitle.size} ")
+    println(s"album title: $albumTitle ") 
+    println(s"artist name: $artist ")
+
+
+    val albumDeetMap = Map( "title" -> albumTitle
+                           ,"artist" -> artist
+                           ,"location" -> location)
+
+    albumDeetMap
+
+
+   }
 
   /*
   def main(args: Array[String]) {

@@ -19,7 +19,18 @@ object App {
 
      creeper.printBuyers();
 
+     var albumDeetMap = creeper.getAlbumDeets()
+
+     println( albumDeetMap )
+     /*
      creeper.expandBuyers();
+
+     var buyerURLs : List[String] = creeper.getBuyerURLs()
+
+     println( s"buyer URL list size: ${ buyerURLs.size }" )
+     */
+    
+
 
 /*     var driver = new RemoteWebDriver( url , DesiredCapabilities.firefox());
 
