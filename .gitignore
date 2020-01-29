@@ -5,3 +5,5 @@
 *.jar
 /dir/target/*
 *classes*
+/dir/screenshots/*
+
