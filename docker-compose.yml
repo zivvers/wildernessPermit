@@ -15,7 +15,7 @@ worker:
 #    - kafka
 #
   volumes:
-    - "/Users/zivvers/Documents/dev projects/mongo_scala/dir:/usr/src/app/MongoScala/"  
+    - "./dir:/usr/src/app/MongoScala/"  
   stdin_open: true
   tty: true
   entrypoint: /bin/sh
