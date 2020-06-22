@@ -1,8 +1,20 @@
 # albumBuyerCrawler
 
-`sudo docker-compose build`
-`sudo docker-compose up -d`
-`sudo docker exec -it $(sudo docker ps --filter NAME=albumbuyercrawler_worker -aq) /bin/bash`
+Build project:
+```
+sudo docker-compose build
+```
 
-maven commands:
-` mvn scala:run -DaddArgs=website.com`
+Run project (detached):
+```
+sudo docker-compose up -d
+```
+
+Connect to worker (for development purposes, e.g. run maven commands):
+```
+sudo docker exec -it $(sudo docker ps --filter NAME=albumbuyercrawler_worker -aq) /bin/bash
+```
+
+Useful maven commands:
+- compile: `mvn scala:compile`
+- (compile and) run using argument supplied website: ` mvn scala:run -DaddArgs=<website>`
