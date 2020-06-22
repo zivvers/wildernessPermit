@@ -31,17 +31,18 @@ class BandCampCrawler(url : String)  {
    // val bandName = 
    private var driver : RemoteWebDriver = new RemoteWebDriver( remoteURL , DesiredCapabilities.firefox() );
 
-   println("IN AUX CONSTRUCTOR")
    driver.get(url);
-   println("connection made...")
+   println("navigating to website ... ")
 
+   
+   /* hmm should this b a class variable?? */
    private val waitForLoad = new WebDriverWait(driver, 20, 250);
 
-   waitForLoad.until(
-      ExpectedConditions.elementToBeClickable( By.className("playbutton") ) // should be on all bandcamp pages
-   )
+   //waitForLoad.until(
+   //   ExpectedConditions.elementToBeClickable( By.className("playbutton") ) // should be on all bandcamp pages
+   //)
 
-   println("page loaded...")
+   //println("page loaded...")
    
    /*def this( url : String, driver : RemoteWebDriver)
    {
@@ -62,6 +63,30 @@ class BandCampCrawler(url : String)  {
      println("page loaded...")
    } */
 
+   //
+   //
+   //
+   def waitGetScreenshot()
+   {
+
+      Thread.sleep(15000); // sleepy boi 
+
+      println("ok get screenshot");
+      val filed: File = driver.getScreenshotAs(OutputType.FILE);
+
+      val conciseNameArr : Array[String] = url.split("\\.", 3);
+
+      val fileName : String = "/usr/src/app/MongoScala/screenshots/"+ conciseNameArr(1) +".jpg";
+
+      println("Ok saving " + fileName);
+      
+      FileUtils.copyFile(filed, new File(fileName))
+
+   }
+
+
+
+
 
    // this is a method to expand the buyers list of an album (by clicking "more...")
    // precondition(s): driver MUST be on loaded band page
@@ -69,12 +94,18 @@ class BandCampCrawler(url : String)  {
    def expandBuyers() 
    {
 
-    var numBuyers : Int = driver.findElements(By.cssSelector("a.fan.pic")).asScala.toList.size
+    var numBuyers : Int = 0;
+    var buyerList = List[WebElement]();
 
     breakable {
 
-      while( driver.findElements(By.cssSelector("a.more-thumbs")).asScala.toList.size > 0 )
+
+      // maxes out at 3000 buyers for testing sake
+      while( driver.findElements(By.cssSelector("a.more-thumbs")).asScala.toList.size > 0 && numBuyers < 3000 )
       {
+        // get all buyer elements
+        buyerList = driver.findElements(By.cssSelector("a.fan.pic")).asScala.toList;
+        numBuyers = buyerList.size; 
         println( s"number of buyers: ${ driver.findElements( By.cssSelector("a.fan.pic") ).asScala.toList.size }" );
 
         var elem : WebElement = driver.findElement(By.cssSelector("a.more-thumbs"))
@@ -123,6 +154,11 @@ class BandCampCrawler(url : String)  {
         } */
       }
 
+      val buyerURLs = buyerList.map(x => x.getAttribute("href"));
+
+      println(buyerURLs.take(10));
+
+
     }
 
 
@@ -134,7 +170,7 @@ class BandCampCrawler(url : String)  {
     var thumbBuyers : List[WebElement] = driver.findElements(By.cssSelector("a.more-thumbs")).asScala.toList
     //var numBuyers = thumbBuyers.size;
     println(s"number of visible buyers: ${ thumbBuyers.size }")
-
+    
 
    }
 

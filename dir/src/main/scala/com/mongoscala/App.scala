@@ -12,16 +12,32 @@ object App {
 
   def main(args: Array[String]) {
 
+    var websiteURL : String = "";
+    if (args.length == 0) {
+        //throw new IllegalArgumentException("need argument for website ;-)");
 
-     var url = "https://sandy.bandcamp.com/album/race";
+        websiteURL = "https://sandy.bandcamp.com/album/race";
+        var creeper : BandCampCrawler = new BandCampCrawler( websiteURL );
 
-     var creeper : BandCampCrawler = new BandCampCrawler( url );
+        creeper.expandBuyers()
+    }
+    else {
 
-     creeper.printBuyers();
+        websiteURL = args(0);
+        var creeper : BandCampCrawler = new BandCampCrawler( websiteURL );
+        creeper.waitGetScreenshot();
+    }
 
-     var albumDeetMap = creeper.getAlbumDeets()
+    println("Website is: " + websiteURL);
+    
+     
 
-     println( albumDeetMap )
+
+     //
+     // var albumDeetMap = creeper.getAlbumDeets()
+     //
+    /* */
+     //println( albumDeetMap )
      /*
      creeper.expandBuyers();
 
@@ -64,7 +80,7 @@ object App {
 */
   }
 
-}
+};
 
 
 
