@@ -4,8 +4,10 @@ package com.mongoscala
 //import org.mongodb.scala._ ;
 
 /* document type */
-import doctype._
+
 import seleniumTool._;
+
+import java.time._
 
 
 object App {
@@ -13,26 +15,33 @@ object App {
   def main(args: Array[String]) {
 
     var websiteURL : String = "";
+    //var creeper : BandCampCrawler = _;
     if (args.length == 0) {
         //throw new IllegalArgumentException("need argument for website ;-)");
 
         websiteURL = "https://sandy.bandcamp.com/album/race";
-        var creeper : BandCampCrawler = new BandCampCrawler( websiteURL );
+        
 
-        creeper.expandBuyers()
+        //creeper.expandBuyers()
     }
     else {
 
         websiteURL = args(0);
-        var creeper : BandCampCrawler = new BandCampCrawler( websiteURL );
-        creeper.waitGetScreenshot();
+        
+        //creeper.waitGetScreenshot();
     }
 
+    var creeper : BandCampCrawler = new BandCampCrawler( websiteURL );
     println("Website is: " + websiteURL);
     
+    creeper.testUpload();
+
+    Thread.sleep(5000);
+
+    creeper.printFirst();
+
+    println("..ok done");
      
-
-
      //
      // var albumDeetMap = creeper.getAlbumDeets()
      //

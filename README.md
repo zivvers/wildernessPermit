@@ -12,7 +12,7 @@ sudo docker-compose up -d
 
 Connect to worker (for development purposes, e.g. run maven commands):
 ```
-sudo docker exec -it $(sudo docker ps --filter NAME=albumbuyercrawler_worker -aq) /bin/bash
+sudo docker exec -it $(sudo docker ps --filter NAME=albumbuyercrawler_worker -aq) /bin/sh
 ```
 
 Useful maven commands:

@@ -20,10 +20,32 @@ import org.openqa.selenium.remote.Augmenter
 
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks._ //need for scala break statement
+import scala.concurrent.Await
+//import scala.concurrent.duration.TimeUnit
+import scala.concurrent.duration.Duration
+
 
 import java.net.URL;
 import java.io.File;
-import org.apache.commons.io.FileUtils
+import java.util.concurrent.TimeUnit
+import org.apache.commons.io.FileUtils;
+
+import org.mongodb.scala.MongoClient
+import org.mongodb.scala.MongoDatabase;
+import org.mongodb.scala.MongoCollection;
+import org.mongodb.scala.Observer
+import org.mongodb.scala.Subscription
+import org.mongodb.scala.Completed
+
+
+import org.mongodb.scala.bson.codecs.Macros._
+import org.mongodb.scala.bson.codecs.DEFAULT_CODEC_REGISTRY
+import org.bson.codecs.configuration.CodecRegistries.{fromRegistries, fromProviders}
+
+/* for error:  Cannot find an implicit ExecutionContext */
+import scala.concurrent.ExecutionContext.Implicits.global
+
+import doctype._;
 
 class BandCampCrawler(url : String)  {
 
@@ -37,6 +59,15 @@ class BandCampCrawler(url : String)  {
    
    /* hmm should this b a class variable?? */
    private val waitForLoad = new WebDriverWait(driver, 20, 250);
+
+
+   private val codecRegistry = fromRegistries(fromProviders(classOf[BandAlbum]), DEFAULT_CODEC_REGISTRY );
+
+   private val uri = "mongodb://db:27017";
+                     /// mongodb://mongo:27017
+   private val client : MongoClient = MongoClient( "mongodb://db:27017" );
+
+   private val db: MongoDatabase = client.getDatabase("test").withCodecRegistry(codecRegistry);
 
    //waitForLoad.until(
    //   ExpectedConditions.elementToBeClickable( By.className("playbutton") ) // should be on all bandcamp pages
@@ -63,9 +94,72 @@ class BandCampCrawler(url : String)  {
      println("page loaded...")
    } */
 
-   //
-   //
-   //
+   def testUpload()
+   {
+      
+      val testEntry : BandAlbum = BandAlbum("Alex G", "Race", "www", "Philly", "");
+      
+      val collection: MongoCollection[BandAlbum] = db.getCollection("test");
+
+      collection.insertOne(testEntry).subscribe(
+          new Observer[Completed](){
+            override def onSubscribe(subscription: Subscription): Unit = {
+
+              println("doc successfully inserted")
+
+            }
+
+            override def onNext(result: Completed): Unit = println("inserted!");
+
+            override def onError(e: Throwable): Unit = println(s"Error: $e")
+
+            override def onComplete(): Unit = println("Completed")
+          }
+      );
+
+   }
+
+   def printFirst()
+   {
+
+      val collection: MongoCollection[BandAlbum] = db.getCollection("test");
+
+      println("get doc...");
+      //val res = collection.find().first().toFuture().foreach(record => record.print() );
+      //println( res );
+
+      // org.mongodb.scala.SingleObservable[Long]
+      //collection.count().head().foreach(cnt => println("doc count: "+cnt) );
+
+      //println("doc count: " + cnt);
+
+      //collection.find().collect().subscribe((results: Seq[BandAlbum]) => println(s"Found: #${results.size}") )
+
+      val res = collection.find().first();
+      /*
+      collection.find().first().subscribe(
+          //(doc: org.mongodb.scala.bson.Document) => {
+            (doc: BandAlbum) => {
+              // operate on an individual document here
+              doc.print()
+          },
+          (e: Throwable) => {
+              // do something with errors here, if desired
+          },
+          () => {
+              // this signifies that you've reached the end of your collection
+              println("end of collection")
+          }
+      )
+      */
+      val resAwait = Await.result(res.toFuture, Duration(10, TimeUnit.SECONDS)).asInstanceOf[BandAlbum]
+
+      resAwait.print()
+
+
+   }
+
+
    def waitGetScreenshot()
    {
 
