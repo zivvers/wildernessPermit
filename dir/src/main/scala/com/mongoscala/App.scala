@@ -32,6 +32,9 @@ object App {
     }
 
     var creeper : BandCampCrawler = new BandCampCrawler( websiteURL );
+    
+    creeper.testBuyerScrape()
+    /*
     println("Website is: " + websiteURL);
     
     creeper.testUpload();
@@ -41,7 +44,7 @@ object App {
     creeper.printFirst();
 
     println("..ok done");
-     
+    */
      //
      // var albumDeetMap = creeper.getAlbumDeets()
      //

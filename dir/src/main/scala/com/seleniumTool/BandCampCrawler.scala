@@ -7,9 +7,11 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Keys
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.OutputType;
@@ -54,14 +56,13 @@ class BandCampCrawler(url : String)  {
    private var driver : RemoteWebDriver = new RemoteWebDriver( remoteURL , DesiredCapabilities.firefox() );
 
    driver.get(url);
+   
    println("navigating to website ... ")
-
    
    /* hmm should this b a class variable?? */
    private val waitForLoad = new WebDriverWait(driver, 20, 250);
 
-
-   private val codecRegistry = fromRegistries(fromProviders(classOf[BandAlbum]), DEFAULT_CODEC_REGISTRY );
+   private val codecRegistry = fromRegistries(fromProviders(classOf[BandAlbum], classOf[BuyerLink]), DEFAULT_CODEC_REGISTRY );
 
    private val uri = "mongodb://db:27017";
                      /// mongodb://mongo:27017
@@ -97,7 +98,20 @@ class BandCampCrawler(url : String)  {
    def testUpload()
    {
       
-      val testEntry : BandAlbum = BandAlbum("Alex G", "Race", "www", "Philly", "");
+      val testEntry : BandAlbum = BandAlbum("Alex G", "Race", "www", "Philly", "", "");
+
+      /*
+      * ( artist: String
+          , album: String
+          , url: String
+          , rawLocation: String
+          , parsedLocation: String
+          , parent: String)
+      *
+      *
+      *
+      *
+      */
       
       val collection: MongoCollection[BandAlbum] = db.getCollection("test");
 
@@ -173,8 +187,107 @@ class BandCampCrawler(url : String)  {
       val fileName : String = "/usr/src/app/MongoScala/screenshots/"+ conciseNameArr(1) +".jpg";
 
       println("Ok saving " + fileName);
+
       
       FileUtils.copyFile(filed, new File(fileName))
+
+   }
+
+   def testBuyerScrape()
+   {
+
+     driver.get("https://bandcamp.com/sometimesgreg") // example
+     Thread.sleep(10000) // ten seconds 
+     
+     var linkList : List[String] = List[String]() //driver.findElements(By.cssSelector("div.collection-title-details")).asScala.toList;
+
+     println("number of purchase results is: " + linkList.size)
+
+     // declare empty set
+     var linkSet = scala.collection.mutable.Set[String]();
+     var prevSize : Int = 0;
+     var cont : Boolean = true;
+     //var firstID : String = "";
+     var firstPurchaseElem : WebElement = null.asInstanceOf[WebElement] //new WebElement()//driver.findElement(By.cssSelector("div.collection-title-details")) ;
+    
+      while(! cont && prevSize == linkList.size)
+      {
+
+        if (! cont && prevSize == linkList.size )
+        {
+          break;
+        }
+
+        if (prevSize == linkList.size)
+        {
+          cont = false
+        }
+        else 
+        {
+          cont = true
+        }
+
+
+        linkList = driver.findElements(By.cssSelector("div.collection-title-details")).asScala.toList
+                          .map( x => x.findElement(By.cssSelector("a.item-link")).getAttribute("href") );
+        firstPurchaseElem = driver.findElement(By.cssSelector("div.collection-title-details"))
+        linkSet ++= linkList
+
+        // firstID = driver.findElement()
+
+        println("number of total purchase results is: " + linkSet.size)
+        println("number of curr visible purchase results is: " + linkList.size)
+        // go to bottom of page        
+        driver.findElement(By.cssSelector("body")).sendKeys(Keys.CONTROL, Keys.END);
+        
+        try {
+        
+          driver.findElement(By.cssSelector("button.show-more")).click();
+        
+        }
+        catch {
+
+          case x : Throwable => println("no button to click!")
+        
+        }
+
+        // wait until first "purchased album/song" is stale
+        waitForLoad.until(ExpectedConditions.stalenessOf(firstPurchaseElem));
+        
+        /* replace with explicit wait! */
+        // Thread.sleep(3500)
+
+        /* this doesn't work 
+        waitForLoad.until(
+          ExpectedConditions.invisibilityOfElementLocated( By.cssSelector("a.href", linkList.head) )
+        )*/
+   //     ExpectedConditions.elementToBeClickable( By.className("playbutton") ) // should be on all bandcamp pages
+   //   )
+
+      }
+    
+  }
+   
+
+   // this a method to scrape a buyer page of all the links 
+   // we must use selenium due to "view all <#> items" that we
+   // want to expand
+   def scrapeBuyer(buyerURL : String /* e.g. https://bandcamp.com/jacobcarl */)
+   {
+      // 
+      driver.get( buyerURL );
+
+      val buttonList : List[WebElement] = driver.findElements(By.cssSelector("buttom.show-more")).asScala.toList;
+
+      // does a "view all <#> items" button exist?
+      if ( buttonList.size > 0 )
+      {
+
+      }
+
+      // go to bottom of 
+      driver.findElement(By.cssSelector("body")).sendKeys(Keys.CONTROL, Keys.END);
+
 
    }
 

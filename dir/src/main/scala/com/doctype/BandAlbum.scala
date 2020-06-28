@@ -1,5 +1,5 @@
 package doctype
-
+//import doctype.BandCampPage; -> already in scope
 import org.mongodb.scala.bson.ObjectId;
 //import org.mongodb.scala.bson.ISODate;
 import java.util.Date;
@@ -10,26 +10,28 @@ object BandAlbum {
    def apply( artist: String
    				, album: String
    				, url: String
-   				, location: String
+   				, rawLocation: String
+   				, parsedLocation: String
    				, parent: String): BandAlbum =
-      new BandAlbum( new ObjectId(), artist, album, url, location, parent, new Date() )   
+      new BandAlbum( url, artist, album, url, rawLocation, parsedLocation, parent, new Date() )   
 
 
 
 }
-
-case class BandAlbum(_id: ObjectId
+/* NOTE: use url as ID! */
+case class BandAlbum(_id: String
 						, artist: String
 						, album: String
 						, url: String
-						, location: String
+						, rawLocation: String
+						, parsedLocation: String
 						, parent: String
-					    , date : Date)
+					    , dateAccessed : Date) extends BandCampPage(_id, url, rawLocation, parsedLocation)
 {
 
-	def print()
+	override def print() : Unit =
     {
-    	printf("Artist: " + artist + ", Album: " + album + ", Location: " + location);
+    	printf("artist: " + artist + ", album: " + album + ", unparsed location: " + rawLocation);
     }
 }
 
