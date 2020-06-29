@@ -6,19 +6,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import org.openqa.selenium.support.ui.WebDriverWait;
-import org.openqa.selenium.support.ui.FluentWait;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.remote.DesiredCapabilities;
-import org.openqa.selenium.By;
-import org.openqa.selenium.Keys
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.OutputType;
-import org.openqa.selenium.TimeoutException;
-
-import org.openqa.selenium.remote.RemoteWebDriver;
-import org.openqa.selenium.remote.Augmenter
 
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks._ //need for scala break statement
@@ -26,6 +13,17 @@ import scala.concurrent.Await
 //import scala.concurrent.duration.TimeUnit
 import scala.concurrent.duration.Duration
 
+import scala.collection.mutable.ListBuffer
+
+import org.openqa.selenium.support.ui.FluentWait;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Keys
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.remote.Augmenter // experimental class!
 
 import java.net.URL;
 import java.io.File;
@@ -49,18 +47,23 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 import doctype._;
 
-class BandCampCrawler(url : String)  {
 
-   private val remoteURL : URL = new URL( "http://remote-webdriver:4444/wd/hub");
-   // val bandName = 
-   private var driver : RemoteWebDriver = new RemoteWebDriver( remoteURL , DesiredCapabilities.firefox() );
+/*
+ * how should we think about this class...? It's a single Selenium driver instance, perhaps it should
+ * inherit from an abstract class that always has a driver and then takes a "master artist" for which it 
+ * will scrape all buyers
+ *  1) getAllAlbums
+ *  2) getAllBuyers
+ * 3) 
+ */
+class BandCampCrawler(baseURL : String) extends Crawler() {
 
-   driver.get(url);
+
+   driver.get( baseURL );
    
    println("navigating to website ... ")
    
-   /* hmm should this b a class variable?? */
-   private val waitForLoad = new WebDriverWait(driver, 20, 250);
+
 
    private val codecRegistry = fromRegistries(fromProviders(classOf[BandAlbum], classOf[BuyerLink]), DEFAULT_CODEC_REGISTRY );
 
@@ -174,30 +177,40 @@ class BandCampCrawler(url : String)  {
    }
 
 
-   def waitGetScreenshot()
+   /*
+   *
+   * BUYER PAGE METHODS - methods that operate on driver that's on a
+   *                           buyer's page
+   *
+   */
+
+   def testPull() /*  : List[String]*/ =
    {
 
-      Thread.sleep(15000); // sleepy boi 
+       var linkList : List[String] = driver.findElements(By.cssSelector("div.collection-title-details")).asScala.toList
+                          .map( x => x.findElement(By.cssSelector("a.item-link")).getAttribute("href") )
 
-      println("ok get screenshot");
-      val filed: File = driver.getScreenshotAs(OutputType.FILE);
 
-      val conciseNameArr : Array[String] = url.split("\\.", 3);
-
-      val fileName : String = "/usr/src/app/MongoScala/screenshots/"+ conciseNameArr(1) +".jpg";
-
-      println("Ok saving " + fileName);
-
-      
-      FileUtils.copyFile(filed, new File(fileName))
+      println("size of buyers after expanding: " + linkList.size)
 
    }
 
-   def testBuyerScrape()
+
+   // this a method to scrape a buyer page of all the links 
+   // we must use selenium due to "view all <#> items" that we
+   // want to expand
+   // PostC: returns List of unique URLs that represent albums or songs
+   def scrapeBuyerPurchases(buyerURL : String /* e.g. https://bandcamp.com/jacobcarl */) : List[String] =
    {
 
-     driver.get("https://bandcamp.com/sometimesgreg") // example
-     Thread.sleep(10000) // ten seconds 
+     driver.get(buyerURL) // example
+     //Thread.sleep(10000) // ten seconds 
+     val countElement : WebElement = driver.findElement( By.cssSelector("div#grid-tabs-sticky span.count") )
+
+     waitForLoad.until(ExpectedConditions.elementToBeClickable( countElement ))
+
+     val totResults : Int = countElement.getText.toInt
+     println("total number of results: " + totResults)
      
      var linkList : List[String] = List[String]() //driver.findElements(By.cssSelector("div.collection-title-details")).asScala.toList;
 
@@ -205,34 +218,26 @@ class BandCampCrawler(url : String)  {
 
      // declare empty set
      var linkSet = scala.collection.mutable.Set[String]();
-     var prevSize : Int = 0;
-     var cont : Boolean = true;
+     //var prevSize : Int = 0;
+     //var cont : Boolean = true;
      //var firstID : String = "";
-     var firstPurchaseElem : WebElement = null.asInstanceOf[WebElement] //new WebElement()//driver.findElement(By.cssSelector("div.collection-title-details")) ;
+
+     /* wow ok see below for how to instantiate null */
+     
+     var purchaseElems : List[WebElement] = Nil
+     var lastSizeList : ListBuffer[Int] = new ListBuffer[Int]()
+     // null.asInstanceOf[WebElement] //new WebElement()//driver.findElement(By.cssSelector("div.collection-title-details")) ;
     
-      while(! cont && prevSize == linkList.size)
+      while( ( lastSizeList.size < 3 
+             || ! lastSizeList.takeRight(3).forall( _ == lastSizeList.last ) ) && linkSet.size < totResults )
       {
 
-        if (! cont && prevSize == linkList.size )
-        {
-          break;
-        }
-
-        if (prevSize == linkList.size)
-        {
-          cont = false
-        }
-        else 
-        {
-          cont = true
-        }
-
-
         linkList = driver.findElements(By.cssSelector("div.collection-title-details")).asScala.toList
-                          .map( x => x.findElement(By.cssSelector("a.item-link")).getAttribute("href") );
-        firstPurchaseElem = driver.findElement(By.cssSelector("div.collection-title-details"))
+                          .map( x => x.findElement(By.cssSelector("a.item-link")).getAttribute("href") )
+        
         linkSet ++= linkList
 
+        lastSizeList += linkSet.size
         // firstID = driver.findElement()
 
         println("number of total purchase results is: " + linkSet.size)
@@ -250,48 +255,23 @@ class BandCampCrawler(url : String)  {
           case x : Throwable => println("no button to click!")
         
         }
+        purchaseElems = driver.findElements( By.cssSelector("div.collection-title-details") ).asScala.toList
 
-        // wait until first "purchased album/song" is stale
-        waitForLoad.until(ExpectedConditions.stalenessOf(firstPurchaseElem));
-        
-        /* replace with explicit wait! */
-        // Thread.sleep(3500)
-
-        /* this doesn't work 
-        waitForLoad.until(
-          ExpectedConditions.invisibilityOfElementLocated( By.cssSelector("a.href", linkList.head) )
-        )*/
-   //     ExpectedConditions.elementToBeClickable( By.className("playbutton") ) // should be on all bandcamp pages
-   //   )
+        waitForLoad.until(ExpectedConditions.elementToBeClickable( purchaseElems.last ))
 
       }
+
+      return linkSet.toList
     
   }
    
 
-   // this a method to scrape a buyer page of all the links 
-   // we must use selenium due to "view all <#> items" that we
-   // want to expand
-   def scrapeBuyer(buyerURL : String /* e.g. https://bandcamp.com/jacobcarl */)
-   {
-      // 
-      driver.get( buyerURL );
-
-      val buttonList : List[WebElement] = driver.findElements(By.cssSelector("buttom.show-more")).asScala.toList;
-
-      // does a "view all <#> items" button exist?
-      if ( buttonList.size > 0 )
-      {
-
-      }
-
-      // go to bottom of 
-      driver.findElement(By.cssSelector("body")).sendKeys(Keys.CONTROL, Keys.END);
-
-
-   }
-
-
+   /*
+   *
+   * BAND ALBUM PAGE METHODS - methods that operate on driver that's on a
+   *                           band's album page
+   *
+   */
 
 
 
@@ -381,6 +361,9 @@ class BandCampCrawler(url : String)  {
 
    }
 
+
+
+
    /* method to get the user URLs from a band's album page
       precondition(s): the band's album page has all buyers expanded ( see expandBuyers )
       postcondition(s): returns List of Strings containing buyer URLs
@@ -395,7 +378,7 @@ class BandCampCrawler(url : String)  {
    }
 
 
-   def getAlbumDeets() : Map[String,String] = 
+   def getAlbumDeets( albumURL : String ) : Map[String,String] = 
    //def getAlbumDeets()
    {
 
@@ -418,41 +401,34 @@ class BandCampCrawler(url : String)  {
 
    }
 
-  /*
-  def main(args: Array[String]) {
 
-     var url:URL = new URL( "http://remote-webdriver:4444/wd/hub");
-
-     var driver = new RemoteWebDriver( url , DesiredCapabilities.firefox());
-
-     driver.get("https://sandy.bandcamp.com/album/race")
-
-     val waitForLoad = new WebDriverWait(driver, 12)
-
-     waitForLoad.until(
-        ExpectedConditions.elementToBeClickable( By.className("playbutton") )
-     )
+   /*
+   *
+   * RANDOM ACCESSORY METHODS
+   *
+   */
 
 
-     println("TIME FOR STUFF")
+   def waitGetScreenshot()
+   {
 
-     while (true)
+      Thread.sleep(15000); // sleepy boi 
 
-     {
-     	println("loopin")
+      println("ok get screenshot");
+      val filed: File = driver.getScreenshotAs(OutputType.FILE);
 
-     	driver.findElement(By.cssSelector("a.more-thumbs"))
+      val conciseNameArr : Array[String] = baseURL.split("\\.", 3);
 
-     }
+      val fileName : String = "/usr/src/app/MongoScala/screenshots/"+ conciseNameArr(1) +".jpg";
+
+      println("Ok saving " + fileName);
+
+      
+      FileUtils.copyFile(filed, new File(fileName))
+
+   }
 
 
-     //val band1 : Band = Band("123", "garbanzo", "http://bandcamp.garbanzo", "philly")
-
-     //println( band1.location)
-
-
-  }
-} */
 }
 
 
