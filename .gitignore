@@ -6,4 +6,5 @@
 /dir/target/*
 *classes*
 /dir/screenshots/*
+*postgres.env
 

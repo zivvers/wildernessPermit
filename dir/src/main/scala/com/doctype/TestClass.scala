@@ -1,0 +1,4 @@
+package doctype
+
+
+object TestClass

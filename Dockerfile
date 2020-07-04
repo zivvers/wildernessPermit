@@ -9,8 +9,8 @@ ENV mongopath /usr/src/app/MongoScala/src/main/scala/com/
 
 RUN mvn archetype:generate -B \
     -DarchetypeGroupId=net.alchim31.maven -DarchetypeArtifactId=scala-archetype-simple -DarchetypeVersion=1.7 \
-    -DgroupId=com.mongoscala -DartifactId=MongoScala -Dversion=0.1-SNAPSHOT -Dpackage=com.mongoscala
-WORKDIR /usr/src/app/MongoScala 
+    -DgroupId=com.permitScrape -DartifactId=PermitScrape -Dversion=0.1-SNAPSHOT -Dpackage=com.permitScrape
+WORKDIR /usr/src/app/PermitScrape 
 RUN rm pom.xml
 RUN rm src/test/scala/samples/*
 

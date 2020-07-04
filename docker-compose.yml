@@ -3,26 +3,26 @@ remote-webdriver:
   volumes:
     - /dev/shm:/dev/shm
   ports:
-    - "4444:4444"
+    - "5555:5555"
   expose:
-    - 4444
+    - 5555
 
 worker:
   build: .
   links:
     - remote-webdriver
     - db
-#    - kafka
-#
   volumes:
-    - "./dir:/usr/src/app/MongoScala/"  
+    - "./dir:/usr/src/app/PermitScrape/"  
   stdin_open: true
   tty: true
   entrypoint: /bin/sh
 
 db:
-   image: mongo:4.2
+   image: postgres:12-alpine
    volumes:
       - ./db:/data/db
+   env_file:
+      postgres.env
    ports:
-      - "27017:27017"
+      - 5432:5432
