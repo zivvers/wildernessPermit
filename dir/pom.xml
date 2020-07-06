@@ -39,10 +39,9 @@
 
     <dependency>
       <groupId>org.tpolecat</groupId>
-      <artifactId>doobie-core_2.13</artifactId>
-      <version>0.9.0</version>
+      <artifactId>doobie-core_2.11</artifactId>
+      <version>0.2.3</version>
     </dependency>
-
       <dependency>
         <groupId>org.jsoup</groupId>
 	<artifactId>jsoup</artifactId>
@@ -106,6 +105,30 @@
           <skipTests>true</skipTests>
         </configuration>
       </plugin>
-    </plugins>
+
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-enforcer-plugin</artifactId>
+      <version>1.4</version>
+      <executions>
+        <execution>
+          <id>enforce-java</id>
+          <goals>
+            <goal>enforce</goal>
+          </goals>
+          <configuration>
+            <rules>
+              <requireJavaVersion>
+                <version>[1.8,)</version>
+              </requireJavaVersion>
+            </rules>    
+          </configuration>
+        </execution>
+      </executions>
+    </plugin>
+
+
+
+   </plugins>
   </build>
 </project>

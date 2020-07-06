@@ -22,6 +22,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 import scala.collection.mutable.ListBuffer
+import scala.util.matching.Regex
 
 import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -31,16 +32,22 @@ import org.openqa.selenium.Keys
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.OutputType;
-import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.TimeoutException
 import org.openqa.selenium.remote.Augmenter // experimental class!
 
-import java.net.URL;
-// import java.io.File;
+import java.net.URL
 import java.io._
 import java.util.concurrent.TimeUnit
-import java.util.Calendar;
-import org.apache.commons.io.FileUtils;
+import java.util.Calendar
+import java.time.LocalDate
+//import java.time.DateTimeFormatter
+import java.time._
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+import java.util.Locale
+import java.time.temporal.TemporalAccessor
 
+import org.apache.commons.io.FileUtils
 
 /* for error:  Cannot find an implicit ExecutionContext */
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -54,10 +61,17 @@ class RecreationCrawler(baseURL : String = "https://www.recreation.gov/permits/2
    driver.get( baseURL );
    
    println("navigating to website ... ")
-   
-   implicit val cs = IO.contextShift(ExecutionContexts.synchronous)
 
-    val xa = Transactor.fromDriverManager[IO](
+   // parses the date information for a given table 
+   private val dateFormat : DateTimeFormatter = new DateTimeFormatterBuilder()
+                                       .parseCaseInsensitive()
+                                       .appendPattern("yyyy MMM EEE d")
+                                       .toFormatter()
+
+   
+   private implicit val cs = IO.contextShift(ExecutionContexts.synchronous)
+
+   private val xa = Transactor.fromDriverManager[IO](
           "org.postgresql.Driver", "jdbc:postgresql://localhost:5432/postgres", "postgres_usr", "oregano!"
     )
   
@@ -81,78 +95,119 @@ class RecreationCrawler(baseURL : String = "https://www.recreation.gov/permits/2
 
       // groupSizeIn.sendKeys("1", Keys.Enter)
 
-      val guestButtons : List[WebElement] = driver.findElements( By.cssSelector("div.sarsa-number-field button") ).asScala.toList
-
-      println("num sarsa buttons: " + guestButtons.size)
-
-      guestButtons(1).click()
-
       
-
-
       //var availTabl : WebElement = driver.findElement( By.cssSelector("table#availability-table") )
       println("wait table load")
 
       // val firstRow : WebElement = driver.findElement( By.cssSelector("table#availability-table tbody tr") )
 
       waitForLoad.until( ExpectedConditions.visibilityOfElementLocated( By.cssSelector("table#availability-table tbody tr") ) )
+      
+      // click to give a "Group Size" of 1
+      driver.findElements( By.cssSelector("div.sarsa-number-field button") ).asScala.toList(1).click()
+
+      val currDate : LocalDate = LocalDate.now()
+      var indx = 0
+      val iter = Iterator.continually {
+         //getScreenshot(indx)
+         indx+=1 
+         println(s"iteration $indx")
+         try
+         {
+            // this wait is for lagging load of trailhead availability 
+            // ( sometimes showing as "unavailable" for a moment )
+            waitForLoad.until(
+               ExpectedConditions.elementToBeClickable( By.cssSelector("td.available") ) 
+            )
+         
+         }
+         catch // the wait could fail erroneously if no permits available for "next" 5 days
+         {
+
+            case err: TimeoutException => println(s"available trailheads timed out")
+
+         }     
+         
+         val tableHTML : String = driver.executeScript( "return arguments[0].outerHTML;"
+         											, driver.findElement( By.cssSelector("div.per-availability-content") ) ).toString() 
+  
+         val doc : Document = Jsoup.parse( tableHTML );
+
+         //click "Next 5 days" button      
+         driver.findElements( By.cssSelector("div.navigator-buttons button") ).asScala.toList(1).click()
+              
+
+         ( doc, pullStartDate( doc.select("div.per-availability-content").first() ) )
+      }.flatMap{ case ( doc : Document, startDate : LocalDate )  =>  doc.select("tbody tr").asScala.toList map (( _ , startDate )) }
+       //.map( println )  
+      //.takeWhile{ case (row : Element, startDate : LocalDate) => startDate.getMonth != Month.NOVEMBER }
+      .takeWhile( tup => tup._2.getMonth != Month.AUGUST)
+      .flatMap{ case (row : Element, startDate : LocalDate) => (0 until 5).map( i => {
+                                                                        
+                                                                     val (numAvail, quota, reserveType) = pullAvailQuota( row.select(s"td:eq(${3+i}").first() )
+                                                                     val permitObj : WildernessPermit = WildernessPermit( currDate
+                                                                                          , startDate.plusDays(i) 
+                                                                                          , row.select("td:eq(0)").text().trim()
+                                                                                          , row.select("td:eq(1)").text().trim()
+                                                                                          , row.select("td:eq(2)").text().trim()
+                                                                                          , numAvail
+                                                                                          , quota
+                                                                                          , reserveType
+                                                                                          )
+                                                                     permitObj
+                                                             } ) }
+     println("iter time!") 
+
+     iter foreach println 
+
+   }
 
    
-      var availTabl : List[WebElement] = driver.findElements( By.cssSelector("table#availability-table") ).asScala.toList
-
-      println("# tables: " + availTabl.size )
-
-
-      //val rows = availTabl(0).findElement( By.tagName("tbody") ).findElements( By.tagName( "tr") ).asScala.toList
-      
-      //println("# rows: " + rows.size )
-      
-
-      //val tabHTML : String = availTabl(0).getAttribute("innerHTML")
-      val tabHTML : String = driver.executeScript( "return arguments[0].outerHTML;", availTabl(0) ).toString() 
-      // println( tabHTML )
-      //println("parse table")
-      parseAvailTable( tabHTML, 0 )
-   }
-
-   def parseAvailTable( tableHTML : String, currDateOffset : Int ) : List[List[String]] =
+   def pullAvailQuota( cellElem : Element /* JSoup Document */ ) : (Int, Int, String) =
    {
-     getScreenshot()
-     val doc : Document = Jsoup.parse( tableHTML );
 
-     writeHTML( "table.html" , doc.toString() )
+      if (cellElem.attr("class") == "unavailable")
+      {
+         return (0, 0, "reserve ahead")
+      }
+      else if (cellElem.attr("class") == "walk-up")
+      {
 
-     var rows : Elements = doc.select("tbody").first().select("tr")//.first().getElementsByTag("tr")
-      
-     val cal : Calendar = Calendar.getInstance()
-          
-     //c.add(Calendar.DATE, 1);
-
-     if ( currDateOffset == 0 )
-     {
-
-        val firstDate : Int  = doc.select("span.date").first().text().toInt
-        val dayOfMonth : Int = cal.get(Calendar.DAY_OF_MONTH)
+         return (0, 0, "walk-up")
          
-        assert( firstDate == dayOfMonth )
-     
-     }
+   
+      }
+      else
+      {
+         println(cellElem.select("div.rec-availability-hint").attr("aria-label"))
+         val availStr : String = cellElem.select("div.rec-availability-hint").attr("aria-label").split(":")(1).trim()
+         val intFind = "(\\d+)(\\D+)(\\d+)".r
+         
+         availStr match 
+         {
+            case intFind(availNum,_, quota) => return (availNum.toInt, quota.toInt, "reserve ahead")  
+         }
+      }
 
-  
-    for (row <- rows.asScala)
-    {
-
-      var cells = row.select("td").asScala.toList
-
-      println("ID: " + cells(0).text())
-      println("SITE: " + cells(1).text())
-      println("Avail: " + cells(6).text())
-
-    }
-
-     val l : List[List[String]] = List( List( "list" ))
-     l
    }
+
+   def pullStartDate( parsedHTML : Element /* JSoup Document */ ) : LocalDate = 
+   {
+      println("in pull start")
+      val monthYearTitl : String = parsedHTML.select( "div.navigator-title" ).text().split("/")(0).trim()
+      print("try 2nd line")
+      val firstDateElem : Element = parsedHTML.select( "thead th:not(.sortable-column-header)" ).first()
+      print( "weekday day str: " + firstDateElem.text() )
+      val firstDateStr : String = monthYearTitl + " " + firstDateElem.select(".weekday").text().trim() + " " + firstDateElem.select(".date").text().trim()
+ 
+      println("FIRST DATE: " + firstDateStr)
+
+      val firstDate : LocalDate = LocalDate.from( dateFormat.parse( firstDateStr ) ) 
+ 
+      firstDate
+   }
+
+
 
    def writeHTML( name : String, html : String ) 
    {
@@ -163,7 +218,7 @@ class RecreationCrawler(baseURL : String = "https://www.recreation.gov/permits/2
    }
 
 
-   def getScreenshot()
+   def getScreenshot(indx : Int)
    {
 
        //Thread.sleep(15000); // sleepy boi 
@@ -171,7 +226,7 @@ class RecreationCrawler(baseURL : String = "https://www.recreation.gov/permits/2
 
        val conciseNameArr : Array[String] = baseURL.split("\\.", 3);
 
-       val fileName : String = "/usr/src/app/PermitScrape/screenshots/"+ conciseNameArr(1) +".jpg";
+       val fileName : String = "/usr/src/app/PermitScrape/screenshots/"+ conciseNameArr(1) + s"_$indx.jpg";
        println("Ok saving " + fileName);
 
 
