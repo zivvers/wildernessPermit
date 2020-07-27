@@ -25,4 +25,15 @@ case class WildernessPermit( datePulled : LocalDate
                , area : String
                , numAvail : Int
                , quota : Int
-               , reserveType : String ) { } 
+               , reserveType : String ) 
+{ 
+   
+   def toTSV() : String = 
+   {
+   
+      return s"${datePulled.toString}\t${datePermit.toString}\t${trailHeadID}\t${trailHead}\t${area}\t${numAvail}\t${quota}\t${reserveType}" 
+   
+   }
+
+
+} 

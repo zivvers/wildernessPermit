@@ -14,6 +14,9 @@ worker:
     - db
   volumes:
     - "./dir:/usr/src/app/PermitScrape/"  
+  env_file:
+    postgres.env
+ 
   stdin_open: true
   tty: true
   entrypoint: /bin/sh

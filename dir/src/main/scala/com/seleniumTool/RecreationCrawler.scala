@@ -72,12 +72,12 @@ class RecreationCrawler(baseURL : String = "https://www.recreation.gov/permits/2
    private implicit val cs = IO.contextShift(ExecutionContexts.synchronous)
 
    private val xa = Transactor.fromDriverManager[IO](
-          "org.postgresql.Driver", "jdbc:postgresql://localhost:5432/postgres", "postgres_usr", "oregano!"
+          "org.postgresql.Driver", "jdbc:postgresql://localhost:5432/postgres", sys.env("POSTGRES_USER"), sys.env("POSTGRES_PASSWORD")
     )
   
 
 
-   def scrapePermitAvailability(  ) : Unit = {
+   def scrapePermitAvailability(  ) : List[WildernessPermit] = {
 
       /* button for whether commercially guided */
 
@@ -107,11 +107,8 @@ class RecreationCrawler(baseURL : String = "https://www.recreation.gov/permits/2
       driver.findElements( By.cssSelector("div.sarsa-number-field button") ).asScala.toList(1).click()
 
       val currDate : LocalDate = LocalDate.now()
-      var indx = 0
-      val iter = Iterator.continually {
-         //getScreenshot(indx)
-         indx+=1 
-         println(s"iteration $indx")
+      val data : List[WildernessPermit]  = Iterator.continually {
+         
          try
          {
             // this wait is for lagging load of trailhead availability 
@@ -139,8 +136,6 @@ class RecreationCrawler(baseURL : String = "https://www.recreation.gov/permits/2
 
          ( doc, pullStartDate( doc.select("div.per-availability-content").first() ) )
       }.flatMap{ case ( doc : Document, startDate : LocalDate )  =>  doc.select("tbody tr").asScala.toList map (( _ , startDate )) }
-       //.map( println )  
-      //.takeWhile{ case (row : Element, startDate : LocalDate) => startDate.getMonth != Month.NOVEMBER }
       .takeWhile( tup => tup._2.getMonth != Month.AUGUST)
       .flatMap{ case (row : Element, startDate : LocalDate) => (0 until 5).map( i => {
                                                                         
@@ -156,9 +151,9 @@ class RecreationCrawler(baseURL : String = "https://www.recreation.gov/permits/2
                                                                                           )
                                                                      permitObj
                                                              } ) }
-     println("iter time!") 
+      .toList
 
-     iter foreach println 
+      data
 
    }
 
@@ -174,9 +169,7 @@ class RecreationCrawler(baseURL : String = "https://www.recreation.gov/permits/2
       {
 
          return (0, 0, "walk-up")
-         
-   
-      }
+      }   
       else
       {
          println(cellElem.select("div.rec-availability-hint").attr("aria-label"))
