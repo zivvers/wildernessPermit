@@ -16,6 +16,24 @@ object WildernessPermit {
                , reserveType /* walk-up or reserve ahead */: String) : WildernessPermit = 
        new WildernessPermit(datePulled, datePermit, trailHeadID, trailHead, area, numAvail, quota, reserveType) 
 
+   /*
+    * "static" method to get fields / type for postgres table creation / insertion
+    * NOTE: text postgresql type is unlimited character  
+    */
+   def getSQLStr() : String =
+   {
+
+      return """( datePulled : date
+               , datePermit : date
+               , trailHeadID : text
+               , trailHead : text
+               , area : text
+               , numAvail : int
+               , quota : int
+               , reserveType : text ) """
+     
+   }
+
 }
 
 case class WildernessPermit( datePulled : LocalDate

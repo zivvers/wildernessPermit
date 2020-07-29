@@ -1,4 +1,4 @@
-package seleniumTool
+package lib.seleniumTool
 
 import org.jsoup.Jsoup;
 import org.jsoup.helper.Validate;

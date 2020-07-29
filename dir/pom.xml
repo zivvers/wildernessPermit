@@ -79,8 +79,6 @@
 	<goal>testCompile</goal>
 	</goals>
 <configuration>
-<args>
-</args>
 </configuration>
 </execution>
 </executions>
@@ -89,8 +87,6 @@
 <launcher>
 <id>sample</id>
 <mainClass>com.permitScrape.App</mainClass>
-<args>
-</args>
 </launcher>
 </launchers>
 </configuration>
