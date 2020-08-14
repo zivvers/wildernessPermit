@@ -3,6 +3,9 @@ package doctype
 import java.util.Date;
 import java.time.LocalDate
 
+import doobie._
+import doobie.implicits._
+import doobie.implicits.legacy.localdate._
 
 object WildernessPermit {
 
@@ -53,5 +56,10 @@ case class WildernessPermit( datePulled : LocalDate
    
    }
 
-
+   /* turn a WildernessPermit instance into a doobie Update0 */
+   def toDoobieInsertion( tableName : String ) : Update0 = 
+   { 
+      return sql"""insert into $tableName ${WildernessPermit.getSQLStr()} 
+                     values ( ${datePulled}, ${datePermit}, ${trailHeadID}, ${trailHead}, ${area}, ${numAvail}, ${quota}, ${reserveType} )""".update
+   }
 } 

@@ -6,10 +6,9 @@ import java.time.LocalDate
 
 
 import doobie.util.ExecutionContexts
-import doobie.util.fragment.Fragment
 import doobie._
 import doobie.implicits._
-import doobie.implicits.legacy.localdate._
+//import doobie.implicits.legacy.localdate._
 import cats._
 import cats.effect._
 import cats.implicits._
@@ -20,6 +19,11 @@ import lib.postgresTool._
 import doctype._
 
 object App {
+
+   private implicit val cs = IO.contextShift(ExecutionContexts.synchronous)
+   private val xa = Transactor.fromDriverManager[IO](
+          "org.postgresql.Driver", "jdbc:postgresql://localhost:5432/postgres", sys.env("POSTGRES_USER"), sys.env("POSTGRES_PASSWORD")
+    )
 
    
    def main(args: Array[String]) {
@@ -39,6 +43,21 @@ object App {
       val crawler : RecreationCrawler = new RecreationCrawler()      
 
       val data : List[WildernessPermit] = crawler.scrapePermitAvailability()
+
+      
+      val create = sql"""CREATE TABLE IF NOT EXISTS $tableName ${WildernessPermit.getSQLStr()}""".update.run
+      create.transact(xa).unsafeRunSync
+
+
+      /* build insertion statements */
+      val updateList : List[Update0] = data.map( item => item.toDoobieInsertion( tableName ) )
+
+
+      val batch = updateList.traverse( item => item.run  )
+
+      batch.transact(xa)
+           .unsafeRunSync()
+
       /*
       val pw = new PrintWriter(new File(s"/usr/src/app/PermitScrape/random/permitData_${LocalDate.now().toString()}.tsv"  ) )
       
