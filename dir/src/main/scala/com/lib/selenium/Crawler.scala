@@ -1,4 +1,4 @@
-package lib.seleniumTool
+package lib.selenium
 
 import org.openqa.selenium.support.ui.WebDriverWait;
 

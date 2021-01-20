@@ -1,4 +1,4 @@
-package lib.seleniumTool
+package lib.selenium
 
 import org.jsoup.Jsoup;
 import org.jsoup.helper.Validate;
@@ -10,6 +10,7 @@ import org.jsoup.select.Elements;
 import doobie.util.ExecutionContexts
 import doobie._
 import doobie.implicits._
+//import doobie.postgres.pgisimplicits._
 import cats._
 import cats.effect._
 import cats.implicits._
@@ -46,6 +47,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
 import java.util.Locale
 import java.time.temporal.TemporalAccessor
+
 
 import org.apache.commons.io.FileUtils
 
@@ -106,9 +108,14 @@ class RecreationCrawler(baseURL : String = "https://www.recreation.gov/permits/2
       // click to give a "Group Size" of 1
       driver.findElements( By.cssSelector("div.sarsa-number-field button") ).asScala.toList(1).click()
 
-      val currDate : LocalDate = LocalDate.now()
+      
       val data : List[WildernessPermit]  = Iterator.continually {
          
+
+         //
+         // TODO: need a way to proceed only when data has changed!
+         //
+
          try
          {
             // this wait is for lagging load of trailhead availability 
@@ -130,18 +137,43 @@ class RecreationCrawler(baseURL : String = "https://www.recreation.gov/permits/2
   
          val doc : Document = Jsoup.parse( tableHTML );
 
-         //click "Next 5 days" button      
-         driver.findElements( By.cssSelector("div.navigator-buttons button") ).asScala.toList(1).click()
-              
+         val date : String = driver.findElement( By.cssSelector("div.per-availability-content span.date") ).getText()
+         println(s"DATE: ${date}")
+         //click "Next 5 days" button
 
-         ( doc, pullStartDate( doc.select("div.per-availability-content").first() ) )
-      }.flatMap{ case ( doc : Document, startDate : LocalDate )  =>  doc.select("tbody tr").asScala.toList map (( _ , startDate )) }
-      .takeWhile( tup => tup._2.getMonth != Month.AUGUST)
-      .flatMap{ case (row : Element, startDate : LocalDate) => (0 until 5).map( i => {
+         
+
+         val nextButton = driver.findElements( By.cssSelector("div.navigator-buttons button") ).asScala.toList(1)
+         println("button enabled? : " + nextButton.isEnabled() )  
+         
+         if (nextButton.isEnabled())
+         {
+            nextButton.click()
+
+            // wait for table to change before 
+            waitForLoad.until(ExpectedConditions.not(
+                     
+                     ExpectedConditions.textToBePresentInElement(
+                                          driver.findElement( By.cssSelector("div.per-availability-content span.date") )
+                                                               , date)
+                     )
+                  );
+
+
+            ( Some(doc), Some(pullStartDate( doc.select("div.per-availability-content").first() )) )
+
+      } else {
+         (None, None)
+      }
+      }.takeWhile( tup => tup._1 != None )
+      .flatMap{ case ( doc : Some[Document], startDate : Some[LocalDate] )  =>  doc.get.select("tbody tr").asScala.toList map (( _ , startDate ))  }
+      //.takeWhile( tup => { /* println(s"month: ${tup._2.getMonth}, eq to August? ${tup._2.getMonth == Month.AUGUST}"); */  tup._2.getMonth != Month.AUGUST })
+      .flatMap{ case (row : Element, startDate : Some[LocalDate]) => (0 until 5).map( i => {
                                                                         
                                                                      val (numAvail, quota, reserveType) = pullAvailQuota( row.select(s"td:eq(${3+i}").first() )
-                                                                     val permitObj : WildernessPermit = WildernessPermit( currDate
-                                                                                          , startDate.plusDays(i) 
+                                                                     //println(s"date ${startDate}")
+                                                                     val permitObj : WildernessPermit = WildernessPermit( LocalDate.now()
+                                                                                          , startDate.get.plusDays(i) 
                                                                                           , row.select("td:eq(0)").text().trim()
                                                                                           , row.select("td:eq(1)").text().trim()
                                                                                           , row.select("td:eq(2)").text().trim()

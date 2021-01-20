@@ -13,5 +13,4 @@ RUN mvn archetype:generate -B \
 WORKDIR /usr/src/app/PermitScrape 
 RUN rm pom.xml
 RUN rm src/test/scala/samples/*
-
 ##make addtl changes down here to avoid re-running mvn layer :)

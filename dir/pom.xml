@@ -43,6 +43,19 @@
       <version>0.8.8</version>
     </dependency>
     
+    <!--dependency>
+      <groupId>org.tpolecat</groupId>
+      <artifactId>doobie-contrib-postgresql_2.11</artifactId>
+      <version>0.3.0</version>
+    </dependency-->
+
+   <dependency>
+     <groupId>org.postgresql</groupId>
+     <artifactId>postgresql</artifactId>
+     <version>42.2.10</version>
+   </dependency>
+
+
     <dependency>
         <groupId>org.jsoup</groupId>
 	<artifactId>jsoup</artifactId>
@@ -67,31 +80,37 @@
   <build>
     <sourceDirectory>src/main/scala</sourceDirectory>
     <testSourceDirectory>src/test/scala</testSourceDirectory>
-    <plugins>
-	<plugin>
-	<groupId>org.scala-tools</groupId>
-	<artifactId>maven-scala-plugin</artifactId>
-	<version>2.15.0</version>
-	<executions>
-	<execution>
-	<goals>
-	<goal>compile</goal>
-	<goal>testCompile</goal>
-	</goals>
-<configuration>
-</configuration>
-</execution>
-</executions>
-<configuration>
-<launchers>
-<launcher>
-<id>sample</id>
-<mainClass>com.permitScrape.App</mainClass>
-</launcher>
-</launchers>
-</configuration>
+<plugins>
 
-</plugin>
+  <plugin>
+  	<groupId>net.alchim31.maven</groupId>
+  	<artifactId>scala-maven-plugin</artifactId>
+  	<version>4.4.0</version>
+  	<executions>
+  	<execution>
+  	<goals>
+  	<goal>compile</goal>
+  	<goal>testCompile</goal>
+  	</goals>
+  <configuration>
+    <scalaVersion>${scala.version}</scalaVersion>
+  </configuration>
+  </execution>
+  </executions>
+  <configuration>
+  <launchers>
+  <launcher>
+  <id>inyo</id>
+  <mainClass>com.permitScrape.App</mainClass>
+    <args>
+      <arg>permits</arg>
+      <arg>inyo</arg>
+    </args>
+  </launcher>
+  </launchers>
+  </configuration>
+
+  </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
