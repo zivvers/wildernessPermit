@@ -20,7 +20,7 @@
     <encoding>UTF-8</encoding>
     <scala.version>2.13.0</scala.version>
     <scala.compat.version>2.13</scala.compat.version>
-    <jsoup.version>1.11.3</jsoup.version>
+    <jsoup.version>1.14.2</jsoup.version>
     <selenium.version>3.141.59</selenium.version>  
   </properties>
 
